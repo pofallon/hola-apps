@@ -9,7 +9,7 @@
       "versions": [
         {
           "version": "0.1.0",
-          "image": "ghcr.io/paulofallon/hola-get2know-cms:0.1.0"
+          "image": "ghcr.io/pofallon/hola-get2know-cms:0.1.0"
         }
       ]
     }

@@ -11,7 +11,7 @@ services:
   web:
     # Built from deploy/Dockerfile and pushed by deploy/hola/publish.sh.
     # RELEASE: pin the digest -> ghcr.io/<OWNER>/hola-get2know-cms-web@sha256:<digest>
-    image: ghcr.io/paulofallon/hola-get2know-cms-web:0.1.0
+    image: ghcr.io/pofallon/hola-get2know-cms-web:0.1.0
     # Apply migrations, then serve. `payload migrate` needs a Node the bundled
     # CLI tolerates (>= 22.11); deploy/Dockerfile is pinned to node:22.11.0-alpine.
     command: ["sh", "-c", "npm run -w apps/site-shell migrate && npm run -w apps/site-shell start"]

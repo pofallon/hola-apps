@@ -29,11 +29,11 @@ hola-apps/
 ## Two artifacts per app (don't conflate them)
 
 - **Runtime image** — the actual container the compose runs
-  (`ghcr.io/paulofallon/hola-get2know-cms-web`). Built from the *app's own repo*
+  (`ghcr.io/pofallon/hola-get2know-cms-web`). Built from the *app's own repo*
   (get2know-cms: the `site` repo's `deploy/Dockerfile`) and pinned by digest in
   `compose.yaml`.
 - **App package** — the `compose.yaml` + `manifest.json`, pushed as a loose-OCI
-  artifact (`ghcr.io/paulofallon/hola-get2know-cms`). This is what Hola pulls;
+  artifact (`ghcr.io/pofallon/hola-get2know-cms`). This is what Hola pulls;
   `catalog.json` points at it. Published from here via `scripts/publish-packages.sh`.
 
 `catalog.config.json` maps a package name to its ref:
@@ -47,7 +47,7 @@ hola-apps/
 2. Build & push the app's runtime image from its own repo; pin the digest into
    `compose.yaml`.
 3. `node scripts/generate-catalog.mjs` → regenerates `catalog.json`.
-4. `OWNER=paulofallon ./scripts/publish-packages.sh` → pushes the package(s).
+4. `OWNER=pofallon ./scripts/publish-packages.sh` → pushes the package(s).
 5. Commit. CI re-verifies `catalog.json` on the PR and refreshes it on merge.
 
 ## Point Hola at this catalog
@@ -55,7 +55,7 @@ hola-apps/
 Add a custom source in Hola:
 
 ```
-url:   https://raw.githubusercontent.com/paulofallon/hola-apps/main/catalog.json
+url:   https://raw.githubusercontent.com/pofallon/hola-apps/main/catalog.json
 auth:  ghcr.io  (a GHCR PAT with read:packages — the packages/images are private)
 trust: custom
 ```

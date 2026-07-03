@@ -1,5 +1,5 @@
 {
-  "registry": "ghcr.io/paulofallon",
+  "registry": "ghcr.io/pofallon",
   "packagePrefix": "hola-",
   "category": "apps"
 }
