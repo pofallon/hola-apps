@@ -1,0 +1,52 @@
+# get2know.io CMS — Hola app package (spec 012), CMS backend only.
+#
+# Serves the Payload admin (/admin) + REST/GraphQL API (/api) + Postgres. The
+# PUBLIC site is built separately (`npm run -w apps/site-shell build:static`)
+# and deployed to AWS Amplify — it is NOT served by this stack.
+#
+# Hola conventions (see try-hola/apps): prebuilt, digest-pinned images; bind
+# mounts only under ${HOLA_APP_DATA}; NO host port bindings (Traefik fronts the
+# manifest's ingress.service); real healthchecks.
+services:
+  web:
+    # Built from deploy/Dockerfile and pushed by deploy/hola/publish.sh.
+    # RELEASE: pin the digest -> ghcr.io/<OWNER>/hola-get2know-cms-web@sha256:<digest>
+    image: ghcr.io/paulofallon/hola-get2know-cms-web:0.1.0
+    # Apply migrations, then serve. `payload migrate` needs a Node the bundled
+    # CLI tolerates (>= 22.11); deploy/Dockerfile is pinned to node:22.11.0-alpine.
+    command: ["sh", "-c", "npm run -w apps/site-shell migrate && npm run -w apps/site-shell start"]
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URI: postgres://payload:${POSTGRES_PASSWORD}@db:5432/payload
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET}
+      # Public origin of the admin/API — Hola injects the app's Traefik hostname.
+      PAYLOAD_PUBLIC_SERVER_URL: https://${HOLA_APP_HOST}
+      # Optional: fires the Amplify static rebuild when content is published.
+      N8N_PUBLISH_WEBHOOK_URL: ${N8N_PUBLISH_WEBHOOK_URL:-}
+    volumes:
+      # Media uploads must persist across redeploys (Payload staticDir).
+      - ${HOLA_APP_DATA}/media:/app/apps/site-shell/public/media
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/admin').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: payload
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: payload
+    volumes:
+      - ${HOLA_APP_DATA}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payload -d payload"]
+      interval: 10s
+      timeout: 5s
+      retries: 12

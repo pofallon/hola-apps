@@ -1,0 +1,17 @@
+{
+  "apps": [
+    {
+      "id": "get2know-cms",
+      "name": "get2know.io CMS",
+      "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
+      "category": "apps",
+      "tags": [],
+      "versions": [
+        {
+          "version": "0.1.0",
+          "image": "ghcr.io/paulofallon/hola-get2know-cms:0.1.0"
+        }
+      ]
+    }
+  ]
+}

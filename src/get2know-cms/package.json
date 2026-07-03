@@ -1,0 +1,14 @@
+{
+  "name": "get2know-cms",
+  "version": "0.1.0",
+  "description": "get2know.io Payload CMS — Hola app package (first-party; not published to the public try-hola/apps catalog).",
+  "license": "MIT",
+  "private": true,
+  "hola": {
+    "ociAnnotations": {
+      "org.opencontainers.image.title": "get2know-cms",
+      "org.opencontainers.image.description": "Payload CMS + Postgres backing get2know.io",
+      "org.opencontainers.image.version": "${npm_package_version}"
+    }
+  }
+}

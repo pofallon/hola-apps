@@ -1,0 +1,40 @@
+name: catalog
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'scripts/generate-catalog.mjs', 'catalog.config.json']
+  pull_request:
+    paths: ['src/**', 'scripts/generate-catalog.mjs', 'catalog.config.json']
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/generate-catalog.mjs
+
+      # On PRs: fail if the committed catalog.json is stale (validation + drift).
+      - name: Verify catalog.json is up to date
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff --exit-code catalog.json \
+            || (echo "::error::catalog.json is stale — run: node scripts/generate-catalog.mjs" && exit 1)
+
+      # On merge to main: regenerate and commit so raw catalog.json stays current.
+      - name: Commit regenerated catalog.json
+        if: github.event_name == 'push'
+        run: |
+          if ! git diff --quiet catalog.json; then
+            git config user.name "hola-catalog-bot"
+            git config user.email "hola-catalog-bot@users.noreply.github.com"
+            git add catalog.json
+            git commit -m "chore: regenerate catalog.json"
+            git push
+          fi

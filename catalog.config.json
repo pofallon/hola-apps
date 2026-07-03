@@ -1,0 +1,5 @@
+{
+  "registry": "ghcr.io/paulofallon",
+  "packagePrefix": "hola-",
+  "category": "apps"
+}
