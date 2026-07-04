@@ -1,6 +1,6 @@
 {
   "name": "get2know-cms",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "title": "get2know.io CMS",
   "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
   "ingress": {
@@ -12,19 +12,31 @@
       "key": "PAYLOAD_SECRET",
       "value": "",
       "isSecret": true,
-      "description": "Payload encryption secret. Generate one, e.g. `openssl rand -hex 32`."
+      "label": "Payload Secret",
+      "type": "string",
+      "minLength": 32,
+      "generate": { "kind": "hex", "length": 32 },
+      "description": "Encryption secret for Payload sessions/JWTs. Auto-generated here (equivalent to `openssl rand -hex 32`). Keep it stable across redeploys — rotating it invalidates existing admin sessions."
     },
     {
       "key": "POSTGRES_PASSWORD",
       "value": "",
       "isSecret": true,
-      "description": "Password for the `payload` Postgres role (used by both services)."
+      "label": "Postgres Password",
+      "type": "string",
+      "generate": { "kind": "hex", "length": 24 },
+      "description": "Password for the `payload` Postgres role, shared by both services. Generated as hex (not base64) so it stays safe to embed in the DATABASE_URI connection string."
     },
     {
       "key": "N8N_PUBLISH_WEBHOOK_URL",
       "value": "",
       "isSecret": true,
-      "description": "Optional: webhook that triggers the Amplify static rebuild when content is published. Leave blank to disable."
+      "required": false,
+      "label": "Publish Webhook URL (optional)",
+      "type": "url",
+      "advanced": true,
+      "placeholder": "https://n8n.example.com/webhook/…",
+      "description": "Optional: n8n webhook that triggers the Amplify static rebuild when content is published. Leave blank to disable — it's optional, so an empty value will not block install."
     }
   ],
   "defaults": {
