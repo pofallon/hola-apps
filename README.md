@@ -29,9 +29,9 @@ hola-apps/
 ## Two artifacts per app (don't conflate them)
 
 - **Runtime image** — the actual container the compose runs
-  (`ghcr.io/pofallon/hola-get2know-cms-web`). Built from the *app's own repo*
-  (get2know-cms: the `site` repo's `deploy/Dockerfile`) and pinned by digest in
-  `compose.yaml`.
+  (`ghcr.io/get2knowio/hola-get2know-cms-web`, under the **get2knowio** org that
+  owns the `site` repo). Built from the *app's own repo* (get2know-cms: the `site`
+  repo's `deploy/Dockerfile`) and pinned by digest in `compose.yaml`.
 - **App package** — the `compose.yaml` + `manifest.json`, pushed as a loose-OCI
   artifact (`ghcr.io/pofallon/hola-get2know-cms`). This is what Hola pulls;
   `catalog.json` points at it. Published from here via `scripts/publish-packages.sh`.
