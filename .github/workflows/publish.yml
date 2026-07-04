@@ -1,0 +1,61 @@
+# Publishes the app package(s) (compose.yaml + manifest.json) to GHCR as loose-OCI
+# artifacts on merge to main — the CI replacement for running scripts/publish-
+# packages.sh by hand. Mirrors how try-hola/apps oras-pushes packages
+# (docker login -> setup-oras -> oras push).
+#
+# Division of labour (kept separate on purpose):
+#   • Runtime IMAGE  -> built in the `site` repo (.github/workflows/publish-cms-image.yml).
+#   • catalog.json   -> regenerated + committed by catalog.yml.
+#   • This workflow  -> ONLY oras-pushes the package(s) to GHCR.
+#
+# No extra secrets: GITHUB_TOKEN has packages:write for this owner's GHCR namespace
+# (ghcr.io/pofallon), which is where catalog.config.json points.
+#
+# publish-packages.sh loops every src/* app and pushes :<version> from each
+# manifest. It (re)pushes all apps on any src change — fine at this scale (one app);
+# re-pushing an unchanged :<version> is a harmless no-op. Bump the version in
+# manifest.json for a real release; catalog.yml then repoints the index.
+name: publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'catalog.config.json'
+      - 'scripts/publish-packages.sh'
+      - '.github/workflows/publish.yml'
+  # Manual re-publish (e.g. after rotating a digest without a src change).
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # oras push -> ghcr.io/<owner>
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'   # publish-packages.sh reads manifests via `node -p`
+
+      # oras push reads the docker credential store that docker/login-action writes,
+      # so logging in with docker is enough — no separate `oras login` needed.
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install ORAS
+        uses: oras-project/setup-oras@v2
+
+      - name: Publish package(s) to GHCR
+        run: ./scripts/publish-packages.sh
