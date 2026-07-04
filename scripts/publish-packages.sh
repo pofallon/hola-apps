@@ -16,10 +16,13 @@ for dir in src/*/; do
   version="$(node -p "require('./${dir}src/manifest.json').version")"
   ref="${REGISTRY}/${PREFIX}${name}:${version}"
   echo "==> oras push ${ref}"
+  # Push each file with its real media type. Hola reads the compose by its
+  # application/yaml layer; without an explicit type oras defaults to
+  # application/vnd.oci.image.layer.v1.tar and Hola reports "no compose file".
   ( cd "${dir}src" && oras push "${ref}" \
       --annotation "org.opencontainers.image.title=${name}" \
       --annotation "org.opencontainers.image.version=${version}" \
-      compose.yaml manifest.json )
+      compose.yaml:application/yaml manifest.json:application/json )
 done
 
 echo "==> Done. Regenerate the index with: node scripts/generate-catalog.mjs"
