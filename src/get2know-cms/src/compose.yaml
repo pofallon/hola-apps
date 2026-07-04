@@ -9,9 +9,10 @@
 # manifest's ingress.service); real healthchecks.
 services:
   web:
-    # Built from deploy/Dockerfile and pushed by deploy/hola/publish.sh.
-    # RELEASE: pin the digest -> ghcr.io/<OWNER>/hola-get2know-cms-web@sha256:<digest>
-    image: ghcr.io/pofallon/hola-get2know-cms-web:0.1.0
+    # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
+    # The IMAGE lives under the get2knowio org (the site repo's namespace); the
+    # package/catalog stay under pofallon. Pinned by digest (immutable).
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.0@sha256:acc3110d7f71cbfbad11de9d1eb2667c4f9d771480cc8a22a44d617ac2849fc2
     # Apply migrations, then serve. `payload migrate` needs a Node the bundled
     # CLI tolerates (>= 22.11); deploy/Dockerfile is pinned to node:22.11.0-alpine.
     command: ["sh", "-c", "npm run -w apps/site-shell migrate && npm run -w apps/site-shell start"]
