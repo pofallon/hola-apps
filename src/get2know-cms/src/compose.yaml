@@ -12,22 +12,12 @@ services:
     # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.4@sha256:e841224affd8e459917e14d7dd88b26658dbacc363571c9baa9afe41e70f7a3c
-    # Wait for Postgres to actually accept TCP connections, THEN migrate, THEN
-    # serve. `depends_on: service_healthy` (pg_isready) can pass during Postgres'
-    # first-boot init window before the real server is listening on :5432, which
-    # let an earlier build's `migrate` no-op against a not-yet-ready DB and start
-    # the server against an empty schema (relation "users"/"posts" does not
-    # exist). The explicit TCP wait closes that race; `&&` keeps a real migrate
-    # failure fatal so the container restarts instead of serving a broken DB.
-    # `payload migrate` needs Node >= 22.11 (deploy/Dockerfile pins 22.11.0-alpine).
-    command:
-      - sh
-      - -c
-      - |
-        echo "Waiting for Postgres at db:5432…"
-        until node -e "require('net').createConnection(5432,'db').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" 2>/dev/null; do sleep 2; done
-        npm run -w apps/site-shell migrate && npm run -w apps/site-shell start
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.5@sha256:5b332abbb789b3ba8c9370ac590e7959ea78f6396d73301f49423ded7763a49b
+    # Boot (wait-for-Postgres → conditional migrate → start) lives in the image
+    # entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no command override
+    # here. `migrate` runs only when `migrate:status` reports pending work, which
+    # avoids the interactive dev-push prompt that hangs a non-TTY container when
+    # the DB was restored from a dev-environment dump.
     environment:
       NODE_ENV: production
       PORT: "3000"
@@ -49,10 +39,10 @@ services:
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       # Static publish → AWS Amplify. On draft→published, the app builds the
       # static export and `deploy-static` pushes it to the STATIC Amplify app
-      # (create/start-deployment) after an `s3 sync` to the ingest bucket. The
-      # AWS_* creds are the scoped get2know-static-deploy IAM user; empty values
-      # simply disable auto-deploy (the CMS still runs). aws-cli + zip ship in
-      # the image (deploy/Dockerfile runtime stage).
+      # (per-file create/start-deployment) after mirroring out/ to the ingest
+      # bucket. Uses the AWS SDK (no aws-cli/zip in the image). The AWS_* creds
+      # are the scoped get2know-static-deploy IAM user; empty values simply
+      # disable auto-deploy (the CMS still runs).
       AMPLIFY_APP_ID: ${AMPLIFY_APP_ID:-}
       AMPLIFY_BRANCH_NAME: ${AMPLIFY_BRANCH_NAME:-main}
       AWS_REGION: ${AWS_REGION:-us-east-1}
@@ -66,7 +56,9 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/admin').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      # Healthy = the server answers at all. /admin may 3xx-redirect to the OIDC
+      # provider, so gating on r.ok would flap; any HTTP response means listening.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/admin').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 12

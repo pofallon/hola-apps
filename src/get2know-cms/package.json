@@ -1,6 +1,6 @@
 {
   "name": "get2know-cms",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "get2know.io Payload CMS \u2014 Hola app package (first-party; not published to the public try-hola/apps catalog).",
   "license": "MIT",
   "private": true,
