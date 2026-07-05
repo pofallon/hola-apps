@@ -1,11 +1,23 @@
 {
   "name": "get2know-cms",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "title": "get2know.io CMS",
   "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
   "ingress": {
     "service": "web",
     "port": 3000
+  },
+  "auth": {
+    "mode": "native-oidc",
+    "oidc": {
+      "redirectPath": "/api/users/oauth/callback",
+      "scopes": ["openid", "email", "profile"],
+      "env": {
+        "issuer": "OIDC_ISSUER",
+        "clientId": "OIDC_CLIENT_ID",
+        "clientSecret": "OIDC_CLIENT_SECRET"
+      }
+    }
   },
   "defaultEnv": [
     {
