@@ -1,6 +1,6 @@
 {
   "name": "get2know-cms",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "title": "get2know.io CMS",
   "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
   "ingress": {
@@ -61,11 +61,11 @@
     },
     {
       "key": "AMPLIFY_APP_ID",
-      "value": "REDACTED_APP_ID",
+      "value": "",
       "required": false,
       "label": "Amplify App ID",
       "type": "string",
-      "description": "The STATIC (WEB) AWS Amplify app that receives the published site. On publish, deploy-static runs `amplify create-deployment/start-deployment` against this app. Default is the get2know-static app."
+      "description": "The STATIC (WEB) AWS Amplify app that receives the published site. On publish, deploy-static runs `amplify create-deployment/start-deployment` against this app. Set this at install time (kept out of the public package). Leave blank to disable auto-publish."
     },
     {
       "key": "AMPLIFY_BRANCH_NAME",
@@ -85,11 +85,11 @@
     },
     {
       "key": "DEPLOY_S3_BUCKET",
-      "value": "REDACTED_BUCKET",
+      "value": "",
       "required": false,
       "label": "Deploy S3 Bucket",
       "type": "string",
-      "description": "S3 bucket the build artifact (out/) is synced to before the Amplify deploy \u2014 audit trail / artifact store."
+      "description": "S3 bucket the build artifact (out/) is synced to before the Amplify deploy \u2014 audit trail / artifact store. Set this at install time (kept out of the public package \u2014 the bucket name embeds the AWS account ID)."
     },
     {
       "key": "AWS_ACCESS_KEY_ID",
