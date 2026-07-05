@@ -1,6 +1,6 @@
 {
   "name": "get2know-cms",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "title": "get2know.io CMS",
   "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
   "ingress": {
@@ -49,6 +49,62 @@
       "advanced": true,
       "placeholder": "https://n8n.example.com/webhook/…",
       "description": "Optional: n8n webhook that triggers the Amplify static rebuild when content is published. Leave blank to disable — it's optional, so an empty value will not block install."
+    },
+    {
+      "key": "AMPLIFY_APP_ID",
+      "value": "REDACTED_APP_ID",
+      "required": false,
+      "label": "Amplify App ID",
+      "type": "string",
+      "advanced": true,
+      "description": "The STATIC (WEB) AWS Amplify app that receives the published site. On publish, deploy-static runs `amplify create-deployment/start-deployment` against this app. Default is the get2know-static app."
+    },
+    {
+      "key": "AMPLIFY_BRANCH_NAME",
+      "value": "main",
+      "required": false,
+      "label": "Amplify Branch",
+      "type": "string",
+      "advanced": true,
+      "description": "Branch on the Amplify app to deploy to (manual-deploy target)."
+    },
+    {
+      "key": "AWS_REGION",
+      "value": "us-east-1",
+      "required": false,
+      "label": "AWS Region",
+      "type": "string",
+      "advanced": true,
+      "description": "Region of the Amplify app and S3 ingest bucket."
+    },
+    {
+      "key": "DEPLOY_S3_BUCKET",
+      "value": "REDACTED_BUCKET",
+      "required": false,
+      "label": "Deploy S3 Bucket",
+      "type": "string",
+      "advanced": true,
+      "description": "S3 bucket the build artifact (out/) is synced to before the Amplify deploy — audit trail / artifact store."
+    },
+    {
+      "key": "AWS_ACCESS_KEY_ID",
+      "value": "",
+      "isSecret": true,
+      "required": false,
+      "label": "AWS Access Key ID",
+      "type": "string",
+      "advanced": true,
+      "description": "Access key for the scoped `get2know-static-deploy` IAM user (Amplify deploy + S3 ingest only). Leave blank to disable auto-publish; the CMS still runs and publishes can be deployed manually."
+    },
+    {
+      "key": "AWS_SECRET_ACCESS_KEY",
+      "value": "",
+      "isSecret": true,
+      "required": false,
+      "label": "AWS Secret Access Key",
+      "type": "string",
+      "advanced": true,
+      "description": "Secret for the `get2know-static-deploy` IAM user access key. Paired with AWS_ACCESS_KEY_ID."
     }
   ],
   "defaults": {

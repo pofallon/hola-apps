@@ -12,7 +12,7 @@ services:
     # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.3@sha256:5b5c571b2a167479b1e75e91d4f17069bbebe96beee5493f340098802538a036
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.4@sha256:e841224affd8e459917e14d7dd88b26658dbacc363571c9baa9afe41e70f7a3c
     # Wait for Postgres to actually accept TCP connections, THEN migrate, THEN
     # serve. `depends_on: service_healthy` (pg_isready) can pass during Postgres'
     # first-boot init window before the real server is listening on :5432, which
@@ -47,6 +47,18 @@ services:
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      # Static publish → AWS Amplify. On draft→published, the app builds the
+      # static export and `deploy-static` pushes it to the STATIC Amplify app
+      # (create/start-deployment) after an `s3 sync` to the ingest bucket. The
+      # AWS_* creds are the scoped get2know-static-deploy IAM user; empty values
+      # simply disable auto-deploy (the CMS still runs). aws-cli + zip ship in
+      # the image (deploy/Dockerfile runtime stage).
+      AMPLIFY_APP_ID: ${AMPLIFY_APP_ID:-}
+      AMPLIFY_BRANCH_NAME: ${AMPLIFY_BRANCH_NAME:-main}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DEPLOY_S3_BUCKET: ${DEPLOY_S3_BUCKET:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     volumes:
       # Media uploads must persist across redeploys (Payload staticDir).
       - ${HOLA_APP_DATA}/media:/app/apps/site-shell/public/media
