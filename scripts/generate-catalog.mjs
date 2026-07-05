@@ -56,14 +56,19 @@ for (const name of readdirSync(srcDir).sort()) {
     }
   }
 
-  const image = `${config.registry}/${config.packagePrefix}${manifest.name}:${version}`;
+  const oci = `${config.registry}/${config.packagePrefix}${manifest.name}:${version}`;
   const entry = {
     id: manifest.name,
     name: manifest.title || manifest.name,
     description: manifest.description || '',
     category: config.category || 'apps',
     tags: manifest.tags || [],
-    versions: [{ version, image }],
+    // Server's RemoteCatalog reader (packages/server/src/services/core/catalog.ts)
+    // reads `versions[].refs.oci` strictly and throws NO_OCI_REF otherwise —
+    // which getDraftDefaults swallows into an empty composeOverride, surfacing at
+    // deploy time as "Active release has no compose file". Match the try-hola/apps
+    // shape, not a bare `image` field.
+    versions: [{ version, refs: { oci } }],
   };
   if (manifest.icon) entry.icon = manifest.icon;
   apps.push(entry);
