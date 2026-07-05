@@ -1,6 +1,6 @@
 {
   "name": "get2know-cms",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "title": "get2know.io CMS",
   "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
   "ingress": {
