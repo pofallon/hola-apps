@@ -12,7 +12,7 @@ services:
     # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.0@sha256:acc3110d7f71cbfbad11de9d1eb2667c4f9d771480cc8a22a44d617ac2849fc2
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.1@sha256:84840954c4f8609315562ea10bf59a678580c44dee44e50f1b954f84aa585aff
     # Apply migrations, then serve. `payload migrate` needs a Node the bundled
     # CLI tolerates (>= 22.11); deploy/Dockerfile is pinned to node:22.11.0-alpine.
     command: ["sh", "-c", "npm run -w apps/site-shell migrate && npm run -w apps/site-shell start"]
@@ -27,9 +27,10 @@ services:
       N8N_PUBLISH_WEBHOOK_URL: ${N8N_PUBLISH_WEBHOOK_URL:-}
       # Authentik OIDC (payload-oauth2 plugin). Hola provisions the client in
       # Authentik at deploy time and injects these three env vars here — see
-      # manifest.json `auth.oidc.env`. Empty/absent (admin-key install) keeps
-      # the plugin disabled (oidcEnabled=false in payload.config.ts), so the
-      # CMS falls back to Payload's built-in admin login.
+      # manifest.json `auth.oidc.env`. The plugin is always declared (so the
+      # admin SPA bakes the authentik strategy at build time); runtime enablement
+      # flips on these env vars being present. An admin-key install (no Authentik)
+      # leaves them blank → the plugin self-disables → built-in admin login.
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
