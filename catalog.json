@@ -9,7 +9,9 @@
       "versions": [
         {
           "version": "0.1.2",
-          "image": "ghcr.io/pofallon/hola-get2know-cms:0.1.2"
+          "refs": {
+            "oci": "ghcr.io/pofallon/hola-get2know-cms:0.1.2"
+          }
         }
       ]
     }
