@@ -1,6 +1,6 @@
 {
   "name": "get2know-cms",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "title": "get2know.io CMS",
   "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
   "ingress": {
@@ -11,7 +11,11 @@
     "mode": "native-oidc",
     "oidc": {
       "redirectPath": "/api/users/oauth/callback",
-      "scopes": ["openid", "email", "profile"],
+      "scopes": [
+        "openid",
+        "email",
+        "profile"
+      ],
       "env": {
         "issuer": "OIDC_ISSUER",
         "clientId": "OIDC_CLIENT_ID",
@@ -27,8 +31,11 @@
       "label": "Payload Secret",
       "type": "string",
       "minLength": 32,
-      "generate": { "kind": "hex", "length": 32 },
-      "description": "Encryption secret for Payload sessions/JWTs. Auto-generated here (equivalent to `openssl rand -hex 32`). Keep it stable across redeploys — rotating it invalidates existing admin sessions."
+      "generate": {
+        "kind": "hex",
+        "length": 32
+      },
+      "description": "Encryption secret for Payload sessions/JWTs. Auto-generated here (equivalent to `openssl rand -hex 32`). Keep it stable across redeploys \u2014 rotating it invalidates existing admin sessions."
     },
     {
       "key": "POSTGRES_PASSWORD",
@@ -36,7 +43,10 @@
       "isSecret": true,
       "label": "Postgres Password",
       "type": "string",
-      "generate": { "kind": "hex", "length": 24 },
+      "generate": {
+        "kind": "hex",
+        "length": 24
+      },
       "description": "Password for the `payload` Postgres role, shared by both services. Generated as hex (not base64) so it stays safe to embed in the DATABASE_URI connection string."
     },
     {
@@ -46,9 +56,8 @@
       "required": false,
       "label": "Publish Webhook URL (optional)",
       "type": "url",
-      "advanced": true,
-      "placeholder": "https://n8n.example.com/webhook/…",
-      "description": "Optional: n8n webhook that triggers the Amplify static rebuild when content is published. Leave blank to disable — it's optional, so an empty value will not block install."
+      "placeholder": "https://n8n.example.com/webhook/\u2026",
+      "description": "Optional: n8n webhook that triggers the Amplify static rebuild when content is published. Leave blank to disable \u2014 it's optional, so an empty value will not block install."
     },
     {
       "key": "AMPLIFY_APP_ID",
@@ -56,7 +65,6 @@
       "required": false,
       "label": "Amplify App ID",
       "type": "string",
-      "advanced": true,
       "description": "The STATIC (WEB) AWS Amplify app that receives the published site. On publish, deploy-static runs `amplify create-deployment/start-deployment` against this app. Default is the get2know-static app."
     },
     {
@@ -65,7 +73,6 @@
       "required": false,
       "label": "Amplify Branch",
       "type": "string",
-      "advanced": true,
       "description": "Branch on the Amplify app to deploy to (manual-deploy target)."
     },
     {
@@ -74,7 +81,6 @@
       "required": false,
       "label": "AWS Region",
       "type": "string",
-      "advanced": true,
       "description": "Region of the Amplify app and S3 ingest bucket."
     },
     {
@@ -83,8 +89,7 @@
       "required": false,
       "label": "Deploy S3 Bucket",
       "type": "string",
-      "advanced": true,
-      "description": "S3 bucket the build artifact (out/) is synced to before the Amplify deploy — audit trail / artifact store."
+      "description": "S3 bucket the build artifact (out/) is synced to before the Amplify deploy \u2014 audit trail / artifact store."
     },
     {
       "key": "AWS_ACCESS_KEY_ID",
@@ -93,7 +98,6 @@
       "required": false,
       "label": "AWS Access Key ID",
       "type": "string",
-      "advanced": true,
       "description": "Access key for the scoped `get2know-static-deploy` IAM user (Amplify deploy + S3 ingest only). Leave blank to disable auto-publish; the CMS still runs and publishes can be deployed manually."
     },
     {
@@ -103,17 +107,23 @@
       "required": false,
       "label": "AWS Secret Access Key",
       "type": "string",
-      "advanced": true,
       "description": "Secret for the `get2know-static-deploy` IAM user access key. Paired with AWS_ACCESS_KEY_ID."
     }
   ],
   "defaults": {
     "ports": [
-      { "container": 3000, "protocol": "tcp" }
+      {
+        "container": 3000,
+        "protocol": "tcp"
+      }
     ],
     "volumes": [
-      { "containerPath": "/app/apps/site-shell/public/media" },
-      { "containerPath": "/var/lib/postgresql/data" }
+      {
+        "containerPath": "/app/apps/site-shell/public/media"
+      },
+      {
+        "containerPath": "/var/lib/postgresql/data"
+      }
     ]
   }
 }
