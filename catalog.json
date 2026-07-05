@@ -8,9 +8,9 @@
       "tags": [],
       "versions": [
         {
-          "version": "0.1.2",
+          "version": "0.1.3",
           "refs": {
-            "oci": "ghcr.io/pofallon/hola-get2know-cms:0.1.2"
+            "oci": "ghcr.io/pofallon/hola-get2know-cms:0.1.3"
           }
         }
       ]

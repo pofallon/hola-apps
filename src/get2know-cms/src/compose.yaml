@@ -25,6 +25,14 @@ services:
       PAYLOAD_PUBLIC_SERVER_URL: https://${HOLA_APP_HOST}
       # Optional: fires the Amplify static rebuild when content is published.
       N8N_PUBLISH_WEBHOOK_URL: ${N8N_PUBLISH_WEBHOOK_URL:-}
+      # Authentik OIDC (payload-oauth2 plugin). Hola provisions the client in
+      # Authentik at deploy time and injects these three env vars here — see
+      # manifest.json `auth.oidc.env`. Empty/absent (admin-key install) keeps
+      # the plugin disabled (oidcEnabled=false in payload.config.ts), so the
+      # CMS falls back to Payload's built-in admin login.
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
     volumes:
       # Media uploads must persist across redeploys (Payload staticDir).
       - ${HOLA_APP_DATA}/media:/app/apps/site-shell/public/media
