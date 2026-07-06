@@ -12,7 +12,7 @@ services:
     # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.7@sha256:b6c877792e33e7e9b07b14232cac1684c5574e36bdb53140dfead09049c31c97
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.8@sha256:09af98927b571f992d432b4101ad7e2a822a06ebe19010e54e7807f15fc220f8
     # Boot (wait-for-Postgres → conditional migrate → start) lives in the image
     # entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no command override
     # here. `migrate` runs only when `migrate:status` reports pending work, which
