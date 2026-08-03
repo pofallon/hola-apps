@@ -12,12 +12,14 @@ services:
     # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.8@sha256:09af98927b571f992d432b4101ad7e2a822a06ebe19010e54e7807f15fc220f8
-    # Boot (wait-for-Postgres → conditional migrate → start) lives in the image
-    # entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no command override
-    # here. `migrate` runs only when `migrate:status` reports pending work, which
-    # avoids the interactive dev-push prompt that hangs a non-TTY container when
-    # the DB was restored from a dev-environment dump.
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.9@sha256:ad15d4dcd6521456dffb15c5cbee2c3273c6eeeece74ee54e66eda82f374a9b6
+    # Boot (wait-for-Postgres → conditional migrate → verify schema → start) lives
+    # in the image entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no
+    # command override here. As of image 0.1.9 the decision comes from querying
+    # payload_migrations directly (deploy/migrate-guard.cjs) instead of parsing
+    # `migrate:status` output: a fresh DB always migrates, a DB carrying the
+    # dev-push sentinel never does (that prompt hangs a non-TTY container), and an
+    # indeterminate state fails the boot rather than starting on an empty schema.
     environment:
       NODE_ENV: production
       PORT: "3000"
@@ -56,11 +58,20 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      # Healthy = the server answers at all. /admin may 3xx-redirect to the OIDC
-      # provider, so gating on r.ok would flap; any HTTP response means listening.
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/admin').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      # Healthy = the app SERVES CONTENT, not merely that it is listening.
+      #
+      # The previous probe was `fetch('…/admin').then(()=>exit 0)`: fetch resolves
+      # for ANY HTTP response including a 500, and /admin returns 200 even with no
+      # schema at all. So a container whose every content page 500'd with
+      # `relation "posts" does not exist` reported healthy, and Hola reported a
+      # successful deploy. Assert res.ok, and probe routes that actually hit
+      # Postgres — /api/posts (public read, published-only) and the site root.
+      #
+      # redirect:'manual' so a 3xx (e.g. toward the OIDC provider) fails fast here
+      # instead of the container chasing an external host until the probe times out.
+      test: ["CMD", "node", "-e", "const b='http://127.0.0.1:3000';const c=async p=>{const r=await fetch(b+p,{redirect:'manual'});if(!r.ok)throw new Error(p+' -> '+r.status)};Promise.all([c('/api/posts?limit=1&depth=0'),c('/')]).then(()=>process.exit(0)).catch(e=>{console.error(e.message);process.exit(1)})"]
       interval: 15s
-      timeout: 5s
+      timeout: 10s
       retries: 12
       start_period: 60s
 
