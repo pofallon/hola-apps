@@ -12,7 +12,7 @@ services:
     # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.12@sha256:cd2d6959693d302b26d6d7b1bad759e488e35db97fe889061ae8eb7032f9f4a1
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.13@sha256:739cdd753ddbbae95d25dcd73cdb6cbcb33ff9bbc37b01a0d35b202550592e25
     # Boot (wait-for-Postgres → conditional migrate → verify schema → start) lives
     # in the image entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no
     # command override here. As of image 0.1.9 the decision comes from querying
@@ -26,6 +26,9 @@ services:
       DATABASE_URI: postgres://payload:${POSTGRES_PASSWORD}@db:5432/payload
       PAYLOAD_SECRET: ${PAYLOAD_SECRET}
       # Public origin of the admin/API — Hola injects the app's Traefik hostname.
+      # As of image 0.1.13 this also drives draft preview: the admin frames
+      # `<this>/preview/...` and the preview page ignores postMessages from any
+      # other origin, so it must be the origin the EDITOR'S BROWSER uses.
       PAYLOAD_PUBLIC_SERVER_URL: https://${HOLA_APP_HOST}
       # Optional: fires the Amplify static rebuild when content is published.
       N8N_PUBLISH_WEBHOOK_URL: ${N8N_PUBLISH_WEBHOOK_URL:-}
