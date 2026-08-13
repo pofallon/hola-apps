@@ -12,7 +12,12 @@ services:
     # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.15@sha256:80482a803417307bd6b0887c15e1be1f48c64d01e86154100b53aab47095b553
+    #
+    # As of 0.1.20 the image tag and this package's version are kept in lockstep
+    # — bump both together — so "which image is bundle X running?" needs no
+    # lookup table. They diverged up to 0.1.19 (package 0.1.19 shipped image
+    # 0.1.15); 0.1.20 realigns them.
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.20@sha256:1442bdd24d5f5a357a825db761dbec83e9432fe605632ad82ea3bf096b6272ac
     # Boot (wait-for-Postgres → conditional migrate → verify schema → start) lives
     # in the image entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no
     # command override here. As of image 0.1.9 the decision comes from querying
@@ -72,7 +77,49 @@ services:
       #
       # redirect:'manual' so a 3xx (e.g. toward the OIDC provider) fails fast here
       # instead of the container chasing an external host until the probe times out.
-      test: ["CMD", "node", "-e", "const b='http://127.0.0.1:3000';const c=async p=>{const r=await fetch(b+p,{redirect:'manual'});if(!r.ok)throw new Error(p+' -> '+r.status)};Promise.all([c('/api/posts?limit=1&depth=0'),c('/')]).then(()=>process.exit(0)).catch(e=>{console.error(e.message);process.exit(1)})"]
+      #
+      # A 200 on `/` is NOT sufficient, which we learned the hard way. Publishing
+      # a post used to rewrite the build output the running server was serving
+      # from (image <= 0.1.13; fixed in 0.1.15). Afterwards `next start` kept
+      # emitting HTML that referenced chunk filenames that no longer existed on
+      # disk: `/` still returned 200 with a full page of markup, while every JS
+      # chunk it pointed at returned 500. React never hydrated and the site
+      # rendered as a blank dark page — for hours — with this healthcheck green
+      # the entire time, because the page itself was fine and only its
+      # subresources were broken.
+      #
+      # So follow the HTML: pull the static assets `/` actually references and
+      # assert they load too. That is what turns "the server responded" into
+      # "a browser could render this page".
+      #
+      # If no asset references are found we warn and pass rather than fail. A
+      # future Next release changing its asset URL shape would otherwise mark a
+      # perfectly healthy app unhealthy and block every deploy; degrading to the
+      # old behaviour is the safer failure mode. Capped at 3 assets — the real
+      # failure takes out every chunk at once, so sampling catches it.
+      test:
+        - CMD
+        - node
+        - -e
+        - |-
+          const base = 'http://127.0.0.1:3000';
+          const get = async (p) => {
+            const r = await fetch(base + p, { redirect: 'manual' });
+            if (!r.ok) throw new Error(p + ' -> ' + r.status);
+            return r;
+          };
+          (async () => {
+            await get('/api/posts?limit=1&depth=0');
+            const html = await (await get('/')).text();
+            const assets = [...new Set(
+              [...html.matchAll(/"(\/_next\/static\/[^"]+?\.(?:js|css))"/g)].map((m) => m[1])
+            )].slice(0, 3);
+            if (assets.length === 0) {
+              console.error('warning: / referenced no /_next/static assets — asset check skipped');
+              return;
+            }
+            for (const a of assets) await get(a);
+          })().then(() => process.exit(0)).catch((e) => { console.error(e.message); process.exit(1); });
       interval: 15s
       timeout: 10s
       retries: 12
