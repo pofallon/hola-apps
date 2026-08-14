@@ -17,7 +17,7 @@ services:
     # — bump both together — so "which image is bundle X running?" needs no
     # lookup table. They diverged up to 0.1.19 (package 0.1.19 shipped image
     # 0.1.15); 0.1.20 realigns them.
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.20@sha256:1442bdd24d5f5a357a825db761dbec83e9432fe605632ad82ea3bf096b6272ac
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.21@sha256:9aa278eb0b256a6ad9464373434f159496fbcfe3a633a08f8365150d6ff3f1ce
     # Boot (wait-for-Postgres → conditional migrate → verify schema → start) lives
     # in the image entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no
     # command override here. As of image 0.1.9 the decision comes from querying
@@ -59,8 +59,16 @@ services:
       DEPLOY_S3_BUCKET: ${DEPLOY_S3_BUCKET:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      # Payload's upload staticDir. MUST equal the media mount below — that same
+      # directory is also what Next serves `/media/*` from. Stated explicitly
+      # rather than inferred by the app: a path derived from the module's own
+      # location resolves into the build output once the server is bundled, so
+      # uploads land on the container's writable layer — 404 on the site, and
+      # discarded on the next redeploy.
+      PAYLOAD_MEDIA_DIR: /app/apps/site-shell/public/media
     volumes:
       # Media uploads must persist across redeploys (Payload staticDir).
+      # Keep this path in lockstep with PAYLOAD_MEDIA_DIR above.
       - ${HOLA_APP_DATA}/media:/app/apps/site-shell/public/media
     depends_on:
       db:
