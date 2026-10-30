@@ -17,7 +17,7 @@ services:
     # — bump both together — so "which image is bundle X running?" needs no
     # lookup table. They diverged up to 0.1.19 (package 0.1.19 shipped image
     # 0.1.15); 0.1.20 realigns them.
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.25@sha256:02f889d6c4d94788b7a77d69f498b286e39163c69cebd33d5bc123552fc4d518
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.26@sha256:14a94e33ed7f552ce996a52b0ff0a823f92c0978881a3f60382cda1054872733
     # Boot (wait-for-Postgres → conditional migrate → verify schema → start) lives
     # in the image entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no
     # command override here. As of image 0.1.9 the decision comes from querying
