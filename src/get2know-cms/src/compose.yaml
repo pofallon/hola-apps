@@ -9,7 +9,7 @@
 # manifest's ingress.service); real healthchecks.
 services:
   web:
-    # Built + pushed by get2knowio/site publish-cms-image.yml (on a cms-v* tag).
+    # Built + pushed by get2knowio/get2know-site publish-cms-image.yml (on a cms-v* tag).
     # The IMAGE lives under the get2knowio org (the site repo's namespace); the
     # package/catalog stay under pofallon. Pinned by digest (immutable).
     #
@@ -17,7 +17,7 @@ services:
     # — bump both together — so "which image is bundle X running?" needs no
     # lookup table. They diverged up to 0.1.19 (package 0.1.19 shipped image
     # 0.1.15); 0.1.20 realigns them.
-    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.26@sha256:14a94e33ed7f552ce996a52b0ff0a823f92c0978881a3f60382cda1054872733
+    image: ghcr.io/get2knowio/hola-get2know-cms-web:0.1.27@sha256:bc24772b382c454ae834f2cbc1e8f669b8a152f41697c8fe5d725c4424a5710c
     # Boot (wait-for-Postgres → conditional migrate → verify schema → start) lives
     # in the image entrypoint (deploy/docker-entrypoint.sh) as of 0.1.5, so no
     # command override here. As of image 0.1.9 the decision comes from querying
