@@ -1,0 +1,84 @@
+{
+  "name": "earlybird-stewardship",
+  "version": "0.1.0",
+  "title": "EarlyBird Stewardship",
+  "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own bearer token; the graph server is reachable only by the service. After install it stays unhealthy until the graph bundle is in place and a first Bot credential is issued (see the compose file).",
+  "tags": ["earlybird", "mcp", "graph", "agents"],
+  "ingress": {
+    "service": "stewardship",
+    "port": 8090
+  },
+  "auth": {
+    "mode": "none"
+  },
+  "defaultEnv": [
+    {
+      "key": "OMNIGRAPH_TOKEN",
+      "value": "",
+      "isSecret": true,
+      "required": true,
+      "label": "Graph Admin Token",
+      "type": "string",
+      "generate": { "kind": "hex", "length": 32 },
+      "description": "Bearer token of the graph server's `hola-admin` actor. It can change the graph's configuration and every record. Used only by the operator on the host; never give it to a Bot and never put it in a connector."
+    },
+    {
+      "key": "EARLYBIRD_RUNTIME_TOKEN",
+      "value": "",
+      "isSecret": true,
+      "required": true,
+      "label": "Graph Runtime Token",
+      "type": "string",
+      "generate": { "kind": "hex", "length": 32 },
+      "description": "Bearer token of the graph server's `earlybird-runtime` actor. Only the stewardship service holds it. Never give it to a Bot."
+    },
+    {
+      "key": "EARLYBIRD_RELEASE_TOKEN",
+      "value": "",
+      "isSecret": true,
+      "required": true,
+      "label": "Graph Release Token",
+      "type": "string",
+      "generate": { "kind": "hex", "length": 32 },
+      "description": "Bearer token of the graph server's `earlybird-release` actor (the operator's import and publish commands). Never give it to a Bot."
+    },
+    {
+      "key": "STEWARDSHIP_LEASE_KEY",
+      "value": "",
+      "isSecret": true,
+      "required": true,
+      "label": "Lease Key",
+      "type": "string",
+      "minLength": 32,
+      "generate": { "kind": "hex", "length": 32 },
+      "description": "Derives the lease tokens the service hands to a Bot that claims work. Keep it stable across redeploys: changing it invalidates every open lease."
+    },
+    {
+      "key": "STEWARDSHIP_LOG_LEVEL",
+      "value": "info",
+      "required": false,
+      "label": "Log Level",
+      "type": "string",
+      "description": "debug, info, warn or error. Request bodies are never logged."
+    }
+  ],
+  "defaults": {
+    "ports": [
+      {
+        "container": 8090,
+        "protocol": "tcp"
+      }
+    ],
+    "volumes": [
+      {
+        "containerPath": "/var/lib/omnigraph/cluster"
+      },
+      {
+        "containerPath": "/var/lib/stewardship"
+      }
+    ]
+  },
+  "upgrade": {
+    "preUpgradeBackup": "recommended"
+  }
+}

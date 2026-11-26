@@ -1,0 +1,14 @@
+{
+  "name": "earlybird-stewardship",
+  "version": "0.1.0",
+  "description": "EarlyBird stewardship MCP service with its Omnigraph server: Hola app package (first-party; not published to the public try-hola/apps catalog).",
+  "license": "MIT",
+  "private": true,
+  "hola": {
+    "ociAnnotations": {
+      "org.opencontainers.image.title": "earlybird-stewardship",
+      "org.opencontainers.image.description": "EarlyBird stewardship MCP service and its Omnigraph server",
+      "org.opencontainers.image.version": "${npm_package_version}"
+    }
+  }
+}

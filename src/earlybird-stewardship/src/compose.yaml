@@ -1,0 +1,148 @@
+# EarlyBird stewardship: Hola app package. One app, three services:
+#
+#   stewardship     the MCP service the Bots connect to (askearlybird/earlybird-knowledge, stewardship/service). It is the
+#                   only service Traefik fronts: POST /mcp, the byte routes, /healthz and /status.
+#   omnigraph       the graph server that holds the EarlyBird knowledge graph. NOT exposed: only `stewardship` reaches
+#                   it, on this app's own network. Its built-in /mcp endpoint would bypass every rule the service adds,
+#                   so it has no ingress and no Omnigraph token is ever given to a Bot.
+#   omnigraph-init  one-shot, as in the public omnigraph package: applies an EMPTY cluster on first start (the server
+#                   refuses to boot from an unapplied root) and hands the two data directories to the images' non-root
+#                   users, because Hola creates bind sources root-owned.
+#
+# Hola conventions (see try-hola/apps): prebuilt, digest-pinned images; bind mounts only under ${HOLA_APP_DATA}; NO host
+# port bindings; real healthchecks.
+#
+# AFTER INSTALL the app is not healthy yet, on purpose. `stewardship` exits at start, and is restarted, until both of
+# these are true (it names the reason in its log, never a secret):
+#
+#   1. The graph holds the EarlyBird bundle. The cluster root at ${HOLA_APP_DATA}/cluster starts empty. The operator puts
+#      the graph there on the host, with the app stopped: either a cluster root prepared elsewhere (the one-time corpus
+#      migration produces one) or `omnigraph cluster apply` of stewardship/graph from the knowledge repository onto that
+#      root. The service refuses a graph whose bundle version is not the one it was built for.
+#   2. One Bot credential exists. The callers file at ${HOLA_APP_DATA}/stewardship/callers.json starts absent, and the
+#      service needs at least one entry. The operator issues one token per Bot on the host with the service's own
+#      command, for example:
+#        docker run --rm -v <app data>/stewardship:/var/lib/stewardship <the stewardship image below> \
+#          node src/credentials.ts issue --bot <bot-key> --file /var/lib/stewardship/callers.json
+#      The token is printed once; only its SHA-256 is stored. Later changes to the file (issue, rotate, revoke) are
+#      read by the running service within a few seconds, with no restart.
+#
+# Auth (manifest auth.mode "none"): the service enforces its own bearer auth on every route except /healthz, and MCP
+# clients cannot complete an SSO login, so a forward-auth gate would only lock the Bots out.
+services:
+  stewardship:
+    # Built and published by askearlybird/earlybird-knowledge (.github/workflows/service-image.yml) on a merge to its
+    # main. Pinned by digest (immutable); the tag is the service version. Bump both together with this package's version.
+    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    environment:
+      STEWARDSHIP_BIND: "0.0.0.0:8090"
+      # The graph server on this app's network. Plain http is correct here: the traffic never leaves the app.
+      STEWARDSHIP_GRAPH_URL: "http://omnigraph:8080"
+      STEWARDSHIP_GRAPH_NAME: "earlybird"
+      # The runtime actor's token, never the administrator's: the service refuses to start with a token that may list
+      # graphs.
+      STEWARDSHIP_GRAPH_TOKEN: ${EARLYBIRD_RUNTIME_TOKEN}
+      # One entry per Bot credential, written by `credentials issue|rotate|revoke` (see the header). Digests only.
+      STEWARDSHIP_CALLERS_FILE: "/var/lib/stewardship/callers.json"
+      # When each credential was last used, to the minute. No token and no digest.
+      STEWARDSHIP_LAST_USED_FILE: "/var/lib/stewardship/last-used.json"
+      STEWARDSHIP_LEASE_KEY: ${STEWARDSHIP_LEASE_KEY}
+      # The service refuses any Host it does not know. Traefik forwards the public host, so name it.
+      STEWARDSHIP_ALLOWED_HOSTS: "${HOLA_APP_HOST}"
+      STEWARDSHIP_LOG_LEVEL: ${STEWARDSHIP_LOG_LEVEL:-info}
+    volumes:
+      - ${HOLA_APP_DATA}/stewardship:/var/lib/stewardship
+    expose:
+      - "8090"
+    depends_on:
+      omnigraph:
+        condition: service_healthy
+    healthcheck:
+      # /healthz needs no credential and reports only {status}. The service listens only after its start-up probes
+      # passed (graph reachable, runtime token is not an administrator's, every stored operation present), so a
+      # healthy container is one that can actually serve the Bots.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/healthz').then((r)=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+
+  omnigraph:
+    image: docker.io/modernrelay/omnigraph-server:v0.16.0@sha256:8668bbed2c267cd826143867cbfc5a01fd56e5e546ca4a8080eb840e39df2eb3
+    environment:
+      # The image's entrypoint turns these into `--cluster … --bind …`.
+      OMNIGRAPH_CLUSTER: "/var/lib/omnigraph/cluster"
+      OMNIGRAPH_BIND: "0.0.0.0:8080"
+      # Three actors. The token only selects the actor; what each may do is the graph bundle's policy
+      # (stewardship/graph/graph.policy.yaml): an actor the policy does not name has no rights. Hex, so each is safe
+      # inside the JSON.
+      OMNIGRAPH_SERVER_BEARER_TOKENS_JSON: '{"hola-admin":"${OMNIGRAPH_TOKEN}","earlybird-release":"${EARLYBIRD_RELEASE_TOKEN}","earlybird-runtime":"${EARLYBIRD_RUNTIME_TOKEN}"}'
+      # Not exposed, so the only Host the server's own MCP endpoint could see is this service name.
+      OMNIGRAPH_MCP_ALLOWED_HOSTS: "omnigraph"
+      # Compose's default 10 s stop timeout is shorter than the server's 25 s drain;
+      # stop_grace_period below gives it room.
+      OMNIGRAPH_SHUTDOWN_GRACE_SECONDS: "25"
+    volumes:
+      - ${HOLA_APP_DATA}/cluster:/var/lib/omnigraph/cluster
+    expose:
+      - "8080"
+    stop_grace_period: 40s
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      omnigraph-init:
+        condition: service_completed_successfully
+
+  omnigraph-init:
+    # Same image, so nothing extra to pull. `restart: "no"` is REQUIRED: Hola applies a default restart policy to
+    # services that declare none, which would restart this after it exits 0, so it would never reach
+    # service_completed_successfully.
+    image: docker.io/modernrelay/omnigraph-server:v0.16.0@sha256:8668bbed2c267cd826143867cbfc5a01fd56e5e546ca4a8080eb840e39df2eb3
+    restart: "no"
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        root=/var/lib/omnigraph/cluster
+        if [ ! -e "$$root/__cluster/state.json" ]; then
+          echo "[hola] no applied cluster at $$root; applying the initial empty cluster"
+          bundle=$$(mktemp -d)
+          cat > "$$bundle/cluster.yaml" <<'EOF'
+        version: 1
+        metadata:
+          name: hola
+        graphs: {}
+        policies:
+          cluster-access:
+            file: cluster.policy.yaml
+            applies_to: [cluster]
+        EOF
+          cat > "$$bundle/cluster.policy.yaml" <<'EOF'
+        version: 1
+        groups:
+          admins: [hola-admin]
+        rules:
+          - id: admins-manage-config
+            allow:
+              actors: { group: admins }
+              actions: [config_manage]
+          - id: admins-list-graphs
+            allow:
+              actors: { group: admins }
+              actions: [graph_list]
+        EOF
+          omnigraph cluster apply --target "$$root" --config "$$bundle" --as hola-admin
+          rm -rf "$$bundle"
+        fi
+        # The graph server runs as uid 999, the stewardship service as uid 1000 (`node`).
+        chown -R 999:999 "$$root"
+        chown -R 1000:1000 /var/lib/stewardship
+        echo "[hola] data directories ready"
+    volumes:
+      - ${HOLA_APP_DATA}/cluster:/var/lib/omnigraph/cluster
+      - ${HOLA_APP_DATA}/stewardship:/var/lib/stewardship
