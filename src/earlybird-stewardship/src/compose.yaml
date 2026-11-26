@@ -33,7 +33,7 @@ services:
   stewardship:
     # Built and published by askearlybird/earlybird-knowledge (.github/workflows/service-image.yml) on a merge to its
     # main. Pinned by digest (immutable); the tag is the service version. Bump both together with this package's version.
-    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:51502e7a5e8e9e6020461a69eb7937c9d9e1cb9862cd816e28442ca4917ae870
     environment:
       STEWARDSHIP_BIND: "0.0.0.0:8090"
       # The graph server on this app's network. Plain http is correct here: the traffic never leaves the app.
