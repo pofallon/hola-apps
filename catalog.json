@@ -1,6 +1,26 @@
 {
   "apps": [
     {
+      "id": "earlybird-stewardship",
+      "name": "EarlyBird Stewardship",
+      "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own bearer token; the graph server is reachable only by the service. After install it stays unhealthy until the graph bundle is in place and a first Bot credential is issued (see the compose file).",
+      "category": "apps",
+      "tags": [
+        "earlybird",
+        "mcp",
+        "graph",
+        "agents"
+      ],
+      "versions": [
+        {
+          "version": "0.1.0",
+          "refs": {
+            "oci": "ghcr.io/pofallon/hola-earlybird-stewardship:0.1.0"
+          }
+        }
+      ]
+    },
+    {
       "id": "get2know-cms",
       "name": "get2know.io CMS",
       "description": "Payload CMS + Postgres backing get2know.io (first-party; not published to the public catalog).",
