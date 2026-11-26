@@ -1,15 +1,29 @@
 {
   "name": "earlybird-stewardship",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "EarlyBird Stewardship",
-  "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own bearer token; the graph server is reachable only by the service. After install it stays unhealthy until the graph bundle is in place and a first Bot credential is issued (see the compose file).",
+  "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own credential (a bearer token, or an OAuth grant the owner approves); the owner's console under /console/ is behind Hola's sign-in; the graph server is reachable only by the service. After install it stays unhealthy until the graph bundle is in place, and serves no Bot until the owner issues a first credential in the console (see the compose file).",
   "tags": ["earlybird", "mcp", "graph", "agents"],
   "ingress": {
     "service": "stewardship",
     "port": 8090
   },
   "auth": {
-    "mode": "none"
+    "mode": "forward-auth",
+    "forwardAuth": {
+      "allowedGroups": ["hola-admins"],
+      "bypassPaths": [
+        "/mcp",
+        "/sources/bytes",
+        "/status",
+        "/healthz",
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-authorization-server",
+        "/oauth/register",
+        "/oauth/token"
+      ],
+      "identitySecretEnv": "STEWARDSHIP_CONSOLE_IDENTITY_SECRET"
+    }
   },
   "defaultEnv": [
     {
@@ -52,6 +66,33 @@
       "minLength": 32,
       "generate": { "kind": "hex", "length": 32 },
       "description": "Derives the lease tokens the service hands to a Bot that claims work. Keep it stable across redeploys: changing it invalidates every open lease."
+    },
+    {
+      "key": "STEWARDSHIP_CONSOLE_IDENTITY_SECRET",
+      "value": "",
+      "isSecret": true,
+      "required": true,
+      "label": "Console Identity Secret",
+      "type": "string",
+      "minLength": 32,
+      "generate": { "kind": "hex", "length": 32 },
+      "description": "Hola sends it as the X-Hola-Identity-Secret header on the sign-in-gated route only, and the owner's console accepts the sign-in's identity headers only together with it. Without it the console is off. Never give it to a Bot and never put it in a connector."
+    },
+    {
+      "key": "STEWARDSHIP_CONSOLE_OWNER_GROUPS",
+      "value": "hola-admins",
+      "required": false,
+      "label": "Console Owner Groups",
+      "type": "string",
+      "description": "Comma-separated sign-in (Authentik) groups whose members are owners in the console. Use a group this app's sign-in gate admits (the manifest's allowedGroups, `hola-admins`). With this and the owner usernames both empty, every console request is refused."
+    },
+    {
+      "key": "STEWARDSHIP_CONSOLE_OWNER_USERS",
+      "value": "",
+      "required": false,
+      "label": "Console Owner Usernames (optional)",
+      "type": "string",
+      "description": "Comma-separated sign-in (Authentik) usernames that are owners in the console, in addition to the owner groups. A username listed here must still be admitted by the sign-in gate's group."
     },
     {
       "key": "STEWARDSHIP_LOG_LEVEL",

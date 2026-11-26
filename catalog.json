@@ -3,7 +3,7 @@
     {
       "id": "earlybird-stewardship",
       "name": "EarlyBird Stewardship",
-      "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own bearer token; the graph server is reachable only by the service. After install it stays unhealthy until the graph bundle is in place and a first Bot credential is issued (see the compose file).",
+      "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own credential (a bearer token, or an OAuth grant the owner approves); the owner's console under /console/ is behind Hola's sign-in; the graph server is reachable only by the service. After install it stays unhealthy until the graph bundle is in place, and serves no Bot until the owner issues a first credential in the console (see the compose file).",
       "category": "apps",
       "tags": [
         "earlybird",
@@ -13,9 +13,9 @@
       ],
       "versions": [
         {
-          "version": "0.1.0",
+          "version": "0.2.0",
           "refs": {
-            "oci": "ghcr.io/pofallon/hola-earlybird-stewardship:0.1.0"
+            "oci": "ghcr.io/pofallon/hola-earlybird-stewardship:0.2.0"
           }
         }
       ]

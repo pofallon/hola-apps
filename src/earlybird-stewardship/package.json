@@ -1,7 +1,7 @@
 {
   "name": "earlybird-stewardship",
-  "version": "0.1.0",
-  "description": "EarlyBird stewardship MCP service with its Omnigraph server: Hola app package (first-party; not published to the public try-hola/apps catalog).",
+  "version": "0.2.0",
+  "description": "EarlyBird stewardship MCP service with its owner console and its Omnigraph server: Hola app package (first-party; not published to the public try-hola/apps catalog).",
   "license": "MIT",
   "private": true,
   "hola": {

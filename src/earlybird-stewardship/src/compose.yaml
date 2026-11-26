@@ -1,7 +1,8 @@
 # EarlyBird stewardship: Hola app package. One app, three services:
 #
 #   stewardship     the MCP service the Bots connect to (askearlybird/earlybird-knowledge, stewardship/service). It is the
-#                   only service Traefik fronts: POST /mcp, the byte routes, /healthz and /status.
+#                   only service Traefik fronts: POST /mcp, the byte routes, /healthz and /status, the OAuth endpoints for
+#                   connectors, and the owner's console under /console/.
 #   omnigraph       the graph server that holds the EarlyBird knowledge graph. NOT exposed: only `stewardship` reaches
 #                   it, on this app's own network. Its built-in /mcp endpoint would bypass every rule the service adds,
 #                   so it has no ingress and no Omnigraph token is ever given to a Bot.
@@ -12,27 +13,37 @@
 # Hola conventions (see try-hola/apps): prebuilt, digest-pinned images; bind mounts only under ${HOLA_APP_DATA}; NO host
 # port bindings; real healthchecks.
 #
-# AFTER INSTALL the app is not healthy yet, on purpose. `stewardship` exits at start, and is restarted, until both of
-# these are true (it names the reason in its log, never a secret):
+# AFTER INSTALL the app is not healthy yet, on purpose. `stewardship` exits at start, and is restarted, until the
+# graph holds the EarlyBird bundle (it names the reason in its log, never a secret); once it runs, it serves no Bot
+# until a first credential exists:
 #
 #   1. The graph holds the EarlyBird bundle. The cluster root at ${HOLA_APP_DATA}/cluster starts empty. The operator puts
 #      the graph there on the host, with the app stopped: either a cluster root prepared elsewhere (the one-time corpus
 #      migration produces one) or `omnigraph cluster apply` of stewardship/graph from the knowledge repository onto that
 #      root. The service refuses a graph whose bundle version is not the one it was built for.
-#   2. One Bot credential exists. The callers file at ${HOLA_APP_DATA}/stewardship/callers.json starts absent, and the
-#      service needs at least one entry. The operator issues one token per Bot on the host with the service's own
-#      command, for example:
+#   2. One Bot credential exists. The callers file at ${HOLA_APP_DATA}/stewardship/callers.json starts absent, and with
+#      the console's settings below the service starts without it. The owner issues the first credential on the
+#      console's credentials page (which creates the file), or approves a connector that registers through OAuth. The
+#      operator's command still works on the host, for example:
 #        docker run --rm -v <app data>/stewardship:/var/lib/stewardship <the stewardship image below> \
 #          node src/credentials.ts issue --bot <bot-key> --file /var/lib/stewardship/callers.json
-#      The token is printed once; only its SHA-256 is stored. Later changes to the file (issue, rotate, revoke) are
-#      read by the running service within a few seconds, with no restart.
+#      A token is shown or printed once; only its SHA-256 is stored. Later changes to the file (issue, rotate, revoke)
+#      are read by the running service within a few seconds, with no restart.
 #
-# Auth (manifest auth.mode "none"): the service enforces its own bearer auth on every route except /healthz, and MCP
-# clients cannot complete an SSO login, so a forward-auth gate would only lock the Bots out.
+# Auth (manifest auth.mode "forward-auth"): every path is behind Hola's SSO gate except the prefixes on the manifest's
+# bypassPaths, which must equal the service's own list (BYPASS_PREFIXES in its src/console/gate.ts): /mcp,
+# /sources/bytes, /status, /healthz, the two /.well-known/oauth-* metadata documents, /oauth/register and /oauth/token.
+# A Bot, an OAuth client and the health check have no browser session; on those routes the service enforces its own
+# bearer auth (none on /healthz and the metadata; registration is rate-limited) and reads no identity header. The
+# console (/console/, and / which redirects to it) is gated, and accepts the X-authentik-* identity headers only together
+# with the identity secret Hola sends as X-Hola-Identity-Secret on the gated router alone (the manifest's
+# identitySecretEnv), because the port alone is not proof: other containers on the ingress network can reach it. Hola
+# strips client-sent identity headers on every router. There is no `ports:` entry, by design.
 services:
   stewardship:
     # Built and published by askearlybird/earlybird-knowledge (.github/workflows/service-image.yml) on a merge to its
-    # main. Pinned by digest (immutable); the tag is the service version. Bump both together with this package's version.
+    # main. Pinned by digest (immutable); the tag is the service version and moves when that version is published again,
+    # so only the digest counts. When the pin changes, change STEWARDSHIP_IMAGE_DIGEST below to the same digest.
     image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:51502e7a5e8e9e6020461a69eb7937c9d9e1cb9862cd816e28442ca4917ae870
     environment:
       STEWARDSHIP_BIND: "0.0.0.0:8090"
@@ -42,13 +53,35 @@ services:
       # The runtime actor's token, never the administrator's: the service refuses to start with a token that may list
       # graphs.
       STEWARDSHIP_GRAPH_TOKEN: ${EARLYBIRD_RUNTIME_TOKEN}
-      # One entry per Bot credential, written by `credentials issue|rotate|revoke` (see the header). Digests only.
+      # The data directory turns on the console, the OAuth endpoints, the traffic and audit logs and the switches. It is
+      # the volume that already holds the callers file, which omnigraph-init hands to uid 1000 (the image's `node`
+      # user) on every start. Besides the two files named below it holds oauth.json, switches.json, releases/ and
+      # instances/<id>/ (the traffic and audit logs). It is confidential and is not part of a graph backup.
+      STEWARDSHIP_DATA_DIR: "/var/lib/stewardship"
+      # One entry per Bot credential, written by the console or by `credentials issue|rotate|revoke` (see the header).
+      # Digests only.
       STEWARDSHIP_CALLERS_FILE: "/var/lib/stewardship/callers.json"
       # When each credential was last used, to the minute. No token and no digest.
       STEWARDSHIP_LAST_USED_FILE: "/var/lib/stewardship/last-used.json"
+      # Names this instance's directory under the data directory and its last-used record. Not a secret.
+      STEWARDSHIP_INSTANCE_ID: "hola-1"
       STEWARDSHIP_LEASE_KEY: ${STEWARDSHIP_LEASE_KEY}
       # The service refuses any Host it does not know. Traefik forwards the public host, so name it.
       STEWARDSHIP_ALLOWED_HOSTS: "${HOLA_APP_HOST}"
+      # The console's origin and the OAuth issuer (the resource is <this>/mcp). Hola's routers are TLS-only, and the
+      # host must be one of the allowed hosts above.
+      STEWARDSHIP_PUBLIC_URL: "https://${HOLA_APP_HOST}"
+      # Who is an owner in the console: Authentik usernames and group names, comma-separated. Both empty refuses every
+      # console request. The group list should name a group of the manifest's allowedGroups.
+      STEWARDSHIP_CONSOLE_OWNER_GROUPS: ${STEWARDSHIP_CONSOLE_OWNER_GROUPS:-}
+      STEWARDSHIP_CONSOLE_OWNER_USERS: ${STEWARDSHIP_CONSOLE_OWNER_USERS:-}
+      # The proof that a request came through Hola's gated router (see the header). Without it the console is off and
+      # the Bots' routes work as before. The X-authentik-jwt signature is not verified: that check is optional
+      # (STEWARDSHIP_CONSOLE_JWT_JWKS_FILE, with its issuer and audience) and is not set here.
+      # STEWARDSHIP_CONSOLE_STANDIN is never set here: it is for development on 127.0.0.1 and is refused on this bind.
+      STEWARDSHIP_CONSOLE_IDENTITY_SECRET: ${STEWARDSHIP_CONSOLE_IDENTITY_SECRET}
+      # Shown on the console's status page. Keep it equal to the digest of the image pin above.
+      STEWARDSHIP_IMAGE_DIGEST: "sha256:51502e7a5e8e9e6020461a69eb7937c9d9e1cb9862cd816e28442ca4917ae870"
       STEWARDSHIP_LOG_LEVEL: ${STEWARDSHIP_LOG_LEVEL:-info}
     volumes:
       - ${HOLA_APP_DATA}/stewardship:/var/lib/stewardship
