@@ -2,7 +2,7 @@
   "name": "earlybird-stewardship",
   "version": "0.2.0",
   "title": "EarlyBird Stewardship",
-  "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own credential (a bearer token, or an OAuth grant the owner approves); the owner's console under /console/ is behind Hola's sign-in; the graph server is reachable only by the service. After install it stays unhealthy until the graph bundle is in place, and serves no Bot until the owner issues a first credential in the console (see the compose file).",
+  "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own credential (a bearer token, or an OAuth grant the owner approves); the owner's console under /console/ is behind Hola's sign-in; the graph server is reachable only by the service. After install the service starts with no graph and is not ready: it serves no Bot until the owner has set the graph up in the console (upload of the graph schema file, preview, apply), added the Bots and issued a first credential there (see the compose file).",
   "tags": ["earlybird", "mcp", "graph", "agents"],
   "ingress": {
     "service": "stewardship",
@@ -35,6 +35,16 @@
       "type": "string",
       "generate": { "kind": "hex", "length": 32 },
       "description": "Bearer token of the graph server's `hola-admin` actor. It can change the graph's configuration and every record. Used only by the operator on the host; never give it to a Bot and never put it in a connector."
+    },
+    {
+      "key": "EARLYBIRD_CONSOLE_TOKEN",
+      "value": "",
+      "isSecret": true,
+      "required": true,
+      "label": "Graph Console Token",
+      "type": "string",
+      "generate": { "kind": "hex", "length": 32 },
+      "description": "Bearer token of the graph server's `earlybird-console` actor. It can change the graph's policy and delete a graph. Only the stewardship service holds it, and uses it only for the owner's changes in the console (setup, domains, roster). It must differ from the runtime token. Never give it to a Bot and never put it in a connector or a browser."
     },
     {
       "key": "EARLYBIRD_RUNTIME_TOKEN",
@@ -93,6 +103,16 @@
       "label": "Console Owner Usernames (optional)",
       "type": "string",
       "description": "Comma-separated sign-in (Authentik) usernames that are owners in the console, in addition to the owner groups. A username listed here must still be admitted by the sign-in gate's group."
+    },
+    {
+      "key": "STEWARDSHIP_READY_INTERVAL_SECONDS",
+      "value": "15",
+      "required": false,
+      "label": "Ready Check Interval (seconds)",
+      "type": "integer",
+      "min": 1,
+      "max": 3600,
+      "description": "How often the service checks the graph while it is not ready (no graph yet, or a definition it does not support). A whole number from 1 to 3600."
     },
     {
       "key": "STEWARDSHIP_LOG_LEVEL",

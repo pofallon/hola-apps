@@ -6,29 +6,47 @@
 #   omnigraph       the graph server that holds the EarlyBird knowledge graph. NOT exposed: only `stewardship` reaches
 #                   it, on this app's own network. Its built-in /mcp endpoint would bypass every rule the service adds,
 #                   so it has no ingress and no Omnigraph token is ever given to a Bot.
-#   omnigraph-init  one-shot, as in the public omnigraph package: applies an EMPTY cluster on first start (the server
-#                   refuses to boot from an unapplied root) and hands the two data directories to the images' non-root
-#                   users, because Hola creates bind sources root-owned.
+#   omnigraph-init  one-shot, as in the public omnigraph package: on a cluster root that holds no applied cluster it
+#                   applies an EMPTY cluster with the starting cluster policy (the server refuses to boot from an
+#                   unapplied root), and on a root that already holds an applied cluster it applies NOTHING (see the
+#                   comment on that service below). It also hands the two data directories to the images' non-root users,
+#                   because Hola creates bind sources root-owned.
 #
 # Hola conventions (see try-hola/apps): prebuilt, digest-pinned images; bind mounts only under ${HOLA_APP_DATA}; NO host
 # port bindings; real healthchecks.
 #
-# AFTER INSTALL the app is not healthy yet, on purpose. `stewardship` exits at start, and is restarted, until the
-# graph holds the EarlyBird bundle (it names the reason in its log, never a secret); once it runs, it serves no Bot
-# until a first credential exists:
+# AFTER INSTALL the service starts with no graph. It listens, /healthz answers (so the sign-in gate keeps routing the
+# console), and it is NOT READY: GET /status and /mcp answer 503 (`not_ready`, Retry-After: 15) and no Bot is served
+# until the owner has set the graph up in the console. Nothing is done on the host for that. The steps, in order:
 #
-#   1. The graph holds the EarlyBird bundle. The cluster root at ${HOLA_APP_DATA}/cluster starts empty. The operator puts
-#      the graph there on the host, with the app stopped: either a cluster root prepared elsewhere (the one-time corpus
-#      migration produces one) or `omnigraph cluster apply` of stewardship/graph from the knowledge repository onto that
-#      root. The service refuses a graph whose bundle version is not the one it was built for.
-#   2. One Bot credential exists. The callers file at ${HOLA_APP_DATA}/stewardship/callers.json starts absent, and with
-#      the console's settings below the service starts without it. The owner issues the first credential on the
-#      console's credentials page (which creates the file), or approves a connector that registers through OAuth. The
-#      operator's command still works on the host, for example:
-#        docker run --rm -v <app data>/stewardship:/var/lib/stewardship <the stewardship image below> \
-#          node src/credentials.ts issue --bot <bot-key> --file /var/lib/stewardship/callers.json
-#      A token is shown or printed once; only its SHA-256 is stored. Later changes to the file (issue, rotate, revoke)
-#      are read by the running service within a few seconds, with no restart.
+#   1. Open the console behind the gate (/console/). The Setup page (/console/setup) says why the service is not ready.
+#   2. On the Setup page, upload the graph schema file, read the preview and apply it. The file is the release asset
+#      `earlybird-graph-schema-<major>.<minor>.json` of the release `graph-schema-v<major>.<minor>` of
+#      askearlybird/earlybird-knowledge, once the owner has published it with that repository's workflow
+#      .github/workflows/graph-schema.yml. NO SUCH FILE HAS BEEN PUBLISHED YET. The preview is the graph server's dry
+#      run, with the service's own access rules marked changed or unchanged; any deletion or non-additive step is
+#      refused. The service waits for the server's receipt and checks every operation it calls before it reports ready.
+#      The upload is one multipart part of about 330 KB; the service's own limit is 4 MiB.
+#   3. Add the domains and the topic and path mappings on the Domains page.
+#   4. Add the Bots with their charters on the Bots page and assign their stewards.
+#   5. Issue each Bot's credential on the Credentials page and put it in that Bot's connector settings alone. The
+#      callers file at ${HOLA_APP_DATA}/stewardship/callers.json starts absent and the console creates it. A token is
+#      shown once; only its SHA-256 is stored.
+#
+# RECOVERY. When the console cannot reach a working state, the owner can apply the knowledge repository's definition
+# offline, from a checkout, with `omnigraph cluster apply --config stewardship/graph --as hola-admin` on a cluster root
+# no server holds (stop the graph server first). That is the owner's act and not the ordinary path.
+#
+# WHAT STAYS ON THE HOST, and why: minting a run binding for a shared credential (the binding key is the owner's and is
+# never put in the console; this package declares none); placing an identity-token key file if the X-authentik-jwt
+# check is wanted (the service fetches no key); and the corpus migration and cutover commands (operator commands on a
+# cluster root no server holds, never the service's).
+#
+# ACCESS POLICY. This package carries the four graph tokens and the STARTING cluster policy that omnigraph-init
+# applies, and no other policy. Which of the four actors may do what on the graph is the service's own text, shipped in
+# its image and applied by the console together with the uploaded schema; an upload cannot change it. What a Bot may do
+# is roster data kept in the graph and enforced by the service: a Bot never holds a graph credential and no policy names
+# a Bot.
 #
 # Auth (manifest auth.mode "forward-auth"): every path is behind Hola's SSO gate except the prefixes on the manifest's
 # bypassPaths, which must equal the service's own list (BYPASS_PREFIXES in its src/console/gate.ts): /mcp,
@@ -53,6 +71,16 @@ services:
       # The runtime actor's token, never the administrator's: the service refuses to start with a token that may list
       # graphs.
       STEWARDSHIP_GRAPH_TOKEN: ${EARLYBIRD_RUNTIME_TOKEN}
+      # The service's second graph credential: the `earlybird-console` actor's token. IT CAN CHANGE POLICY AND DELETE A
+      # GRAPH (the graph server has no narrower grant than managing configuration). The service uses it only for the
+      # owner's changes in the console (setup, domains, roster) and never sends it to a Bot or a browser. It is never the
+      # administrator's token and never the runtime token above: the service refuses to start when the two are the same
+      # value, and the graph server refuses the console's requests when the token is not that actor's. Without it the
+      # setup, domain and roster changes are off, and the console says so.
+      STEWARDSHIP_CONSOLE_GRAPH_TOKEN: ${EARLYBIRD_CONSOLE_TOKEN}
+      # How often, in seconds (1 to 3600), the service checks the graph while it is not ready (no graph yet, or a
+      # definition it does not support).
+      STEWARDSHIP_READY_INTERVAL_SECONDS: ${STEWARDSHIP_READY_INTERVAL_SECONDS:-15}
       # The data directory turns on the console, the OAuth endpoints, the traffic and audit logs and the switches. It is
       # the volume that already holds the callers file, which omnigraph-init hands to uid 1000 (the image's `node`
       # user) on every start. Besides the two files named below it holds oauth.json, switches.json, releases/ and
@@ -91,9 +119,9 @@ services:
       omnigraph:
         condition: service_healthy
     healthcheck:
-      # /healthz needs no credential and reports only {status}. The service listens only after its start-up probes
-      # passed (graph reachable, runtime token is not an administrator's, every stored operation present), so a
-      # healthy container is one that can actually serve the Bots.
+      # /healthz needs no credential and reports only {status}. It answers as soon as the service listens, whatever the
+      # state of the graph, so the gate keeps routing the console during setup: a healthy container is not yet one that
+      # serves the Bots. Until the graph is set up, GET /status and /mcp answer 503 (`not_ready`).
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/healthz').then((r)=>process.exit(r.ok?0:1),()=>process.exit(1))"]
       interval: 30s
       timeout: 4s
@@ -106,10 +134,12 @@ services:
       # The image's entrypoint turns these into `--cluster … --bind …`.
       OMNIGRAPH_CLUSTER: "/var/lib/omnigraph/cluster"
       OMNIGRAPH_BIND: "0.0.0.0:8080"
-      # Three actors. The token only selects the actor; what each may do is the graph bundle's policy
-      # (stewardship/graph/graph.policy.yaml): an actor the policy does not name has no rights. Hex, so each is safe
-      # inside the JSON.
-      OMNIGRAPH_SERVER_BEARER_TOKENS_JSON: '{"hola-admin":"${OMNIGRAPH_TOKEN}","earlybird-release":"${EARLYBIRD_RELEASE_TOKEN}","earlybird-runtime":"${EARLYBIRD_RUNTIME_TOKEN}"}'
+      # Four actors. The token only selects the actor; what each may do is the policy the cluster holds: the starting
+      # cluster policy of omnigraph-init below until the graph is set up, then the service's own access rules, which the
+      # console applies with the schema file. An actor the policy does not name has no rights. Hex, so each is safe
+      # inside the JSON. The server reads this map only when it starts, so a changed or added token takes a restart of
+      # the graph server.
+      OMNIGRAPH_SERVER_BEARER_TOKENS_JSON: '{"hola-admin":"${OMNIGRAPH_TOKEN}","earlybird-release":"${EARLYBIRD_RELEASE_TOKEN}","earlybird-runtime":"${EARLYBIRD_RUNTIME_TOKEN}","earlybird-console":"${EARLYBIRD_CONSOLE_TOKEN}"}'
       # Not exposed, so the only Host the server's own MCP endpoint could see is this service name.
       OMNIGRAPH_MCP_ALLOWED_HOSTS: "omnigraph"
       # Compose's default 10 s stop timeout is shorter than the server's 25 s drain;
@@ -134,6 +164,19 @@ services:
     # Same image, so nothing extra to pull. `restart: "no"` is REQUIRED: Hola applies a default restart policy to
     # services that declare none, which would restart this after it exits 0, so it would never reach
     # service_completed_successfully.
+    #
+    # What it applies, by the state of the cluster root:
+    #   - No applied cluster (no __cluster/state.json): the empty cluster (`graphs: {}`) with the starting cluster
+    #     policy below, which lets `earlybird-console` manage configuration so that the console's first dry run is not
+    #     refused. This is the ONLY case in which it applies anything.
+    #   - An applied cluster, whatever it holds: NOTHING. Applying `graphs: {}` over a cluster that holds a graph would
+    #     delete the graph with its history, and this script has no test of "holds no graph" that was verified against
+    #     the CLI, so it never applies over an existing cluster, not even a policy. A cluster that an earlier version
+    #     of this package initialised (the `admins` rules only) and that holds no graph therefore keeps the earlier
+    #     policy: the console's first dry run is then refused (`policy denied action 'config_manage'`), and the way on
+    #     is a fresh install (an empty cluster directory) or the owner's offline apply (RECOVERY in the header).
+    # `config_manage` stays in rules of its own (a rule that mixes it with another action fails to load), and the
+    # console actor gets no `graph_list`.
     image: docker.io/modernrelay/omnigraph-server:v0.16.0@sha256:8668bbed2c267cd826143867cbfc5a01fd56e5e546ca4a8080eb840e39df2eb3
     restart: "no"
     user: "0:0"
@@ -159,6 +202,7 @@ services:
         version: 1
         groups:
           admins: [hola-admin]
+          console: [earlybird-console]
         rules:
           - id: admins-manage-config
             allow:
@@ -168,9 +212,15 @@ services:
             allow:
               actors: { group: admins }
               actions: [graph_list]
+          - id: console-manages-config
+            allow:
+              actors: { group: console }
+              actions: [config_manage]
         EOF
           omnigraph cluster apply --target "$$root" --config "$$bundle" --as hola-admin
           rm -rf "$$bundle"
+        else
+          echo "[hola] an applied cluster exists at $$root; applying nothing (an existing cluster is never changed here)"
         fi
         # The graph server runs as uid 999, the stewardship service as uid 1000 (`node`).
         chown -R 999:999 "$$root"
