@@ -3,7 +3,7 @@
     {
       "id": "earlybird-stewardship",
       "name": "EarlyBird Stewardship",
-      "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own credential (a bearer token, or an OAuth grant the owner approves); the owner's console under /console/ is behind Hola's sign-in; the graph server is reachable only by the service. After install the service starts with no graph and is not ready: it serves no Bot until the owner has set the graph up in the console (upload of the graph schema file, preview, apply), added the Bots and issued a first credential there (see the compose file).",
+      "description": "The EarlyBird stewardship MCP service and the Omnigraph server that holds the EarlyBird knowledge graph, in one app. The Bots connect to the service over MCP, each with its own credential (a bearer token, or an OAuth grant the owner approves); the owner's console under /console/ is behind Hola's sign-in; the graph server is reachable only by the service. After install the service starts with no graph and is not ready: it serves no Bot until the owner has set the graph up in the console (upload of the graph schema file, preview, apply), added the Bots and issued a first credential there (see the compose file). The owner can then migrate the corpus into the graph from the console and, once the cutover is directed and the owner has created a bucket, a signing key and a publishing credential outside Hola, publish releases to that bucket; publishing is off until those settings are given.",
       "category": "apps",
       "tags": [
         "earlybird",

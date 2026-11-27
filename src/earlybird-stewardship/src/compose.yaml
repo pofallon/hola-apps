@@ -22,7 +22,7 @@
 #   1. Open the console behind the gate (/console/). The Setup page (/console/setup) says why the service is not ready.
 #   2. On the Setup page, upload the graph schema file, read the preview and apply it. The file is the release asset
 #      `earlybird-graph-schema-<major>.<minor>.json` of the release `graph-schema-v<major>.<minor>` of
-#      askearlybird/earlybird-knowledge, once the owner has published it with that repository's workflow
+#      askearlybird/earlybird-knowledge (1.2 or later for the service of specs 014 and 015), once the owner has published it with that repository's workflow
 #      .github/workflows/graph-schema.yml. NO SUCH FILE HAS BEEN PUBLISHED YET. The preview is the graph server's dry
 #      run, with the service's own access rules marked changed or unchanged; any deletion or non-additive step is
 #      refused. The service waits for the server's receipt and checks every operation it calls before it reports ready.
@@ -33,14 +33,59 @@
 #      callers file at ${HOLA_APP_DATA}/stewardship/callers.json starts absent and the console creates it. A token is
 #      shown once; only its SHA-256 is stored.
 #
+# INSTALL FRESH, DO NOT UPGRADE. The console's graph rights come from the starting cluster policy that omnigraph-init
+# writes only onto a cluster root that holds no applied cluster (see the comment on that service). An app that package
+# 0.1.0 (or an earlier state of this draft) already started keeps the earlier policy, and the console's first dry run is
+# then refused. Install into an empty cluster directory, or make the owner's offline apply (RECOVERY). Whether Hola
+# provisions the forward-auth provider and generates the new secrets on an upgrade was not checked.
+#
+# NOTHING IN THIS PACKAGE HAS BEEN INSTALLED, RUN OR REHEARSED, on Hola or anywhere else, including the console, the
+# migration upload, the release publishing and the forward-auth gate.
+#
 # RECOVERY. When the console cannot reach a working state, the owner can apply the knowledge repository's definition
 # offline, from a checkout, with `omnigraph cluster apply --config stewardship/graph --as hola-admin` on a cluster root
 # no server holds (stop the graph server first). That is the owner's act and not the ordinary path.
 #
+# MIGRATING THE CORPUS FROM THE CONSOLE (spec 014). After the graph is set up the owner uploads a migration package,
+# built on a workstation by `npm run graph:package` of askearlybird/earlybird-knowledge (about 88 MB for today's corpus),
+# in parts of 16 MiB by default (at most 32 MiB), one part per request, to the console's /console/migration page, then
+# checks it, loads it and, on the owner's word, cuts over. Nothing here sets anything for it: the service's one new
+# setting, STEWARDSHIP_MIGRATION_MAX_BYTES (the largest package it stages; default 1 GiB, inert without the data
+# directory), is left at its default and is not declared. While a package is staged the data volume holds source bytes
+# that may carry third-party rights.
+#   REQUEST BODY AND TIMEOUT IN FRONT OF THE SERVICE. Every hop in front of the service must pass a request body of at
+#   least 17 MiB on /console/* (32 MiB plus a header line to allow for the largest part) and allow about two minutes for
+#   one part (the service's own request timeout is 120 s; a 16 MiB part needs about 1.1 Mbit/s of uplink to arrive in
+#   that time). This package sets nothing for it, because Hola has no setting for it: as read in Hola's source
+#   (0.11.0-rc.17), its Traefik (traefik:v3.5, packages/compose/docker-compose.yml) is started with no body-size limit, no
+#   buffering middleware and no entrypoint timeout option, and its forward-auth middleware
+#   (packages/server/src/services/core/routing.ts) sets neither a body forward nor a limit. By the source nothing in
+#   Hola caps a body on this route, but Traefik v3's own default for the time to read a whole request is, from its
+#   documentation and not from Hola's source, 60 s, and Hola has no setting to raise it. A 16 MiB part then needs about
+#   2.2 Mbit/s of uplink. This was read, not run, and anything in front of Hola (a tunnel or another proxy) is outside
+#   this package. If a part does not arrive in the time allowed, build the package with a smaller part size
+#   (`--part-bytes`).
+#
+# RELEASES TO A BUCKET (spec 015). The service can publish an immutable release of the corpus to an S3 bucket, signed by a
+# KMS key, from the owner's action in the console. It is OFF: the nine STEWARDSHIP_RELEASE_* settings are all empty, and the
+# service also refuses to publish until the owner's cutover. What the owner must create OUTSIDE Hola before turning it on
+# (requested in askearlybird/earlybird-app issue 1959): a bucket (versioned, object lock on, a policy that allows an
+# object to be added only when its key is absent), a KMS key for signing (P-256) with its public half, and a publishing
+# credential that may add an object under the bucket's prefix and ask that one key to sign, and nothing else. Then set the
+# six required settings (the access key pair as the app's secrets) and restart the app; also upload the graph schema
+# 1.2 file in the console first (a service built for 1.2 on an older graph stays in the setup state), compare the public
+# key on /console/releases/key with what the infrastructure reports and have it added to the knowledge repository's
+# trust list. The container then needs outbound HTTPS to two hosts, matched by pattern: <bucket>.s3.<region>.amazonaws.com
+# and kms.<region>.amazonaws.com. If Hola restricts outbound traffic per app, allow those and nothing else new. No inbound
+# change. The data volume's releases/ directory holds frozen selections, job files and staged bundles, which hold
+# retained source bytes: it is confidential and should be sized for a staged release. Nothing of this has been created,
+# installed, rehearsed or used.
+#
 # WHAT STAYS ON THE HOST, and why: minting a run binding for a shared credential (the binding key is the owner's and is
 # never put in the console; this package declares none); placing an identity-token key file if the X-authentik-jwt
-# check is wanted (the service fetches no key); and the corpus migration and cutover commands (operator commands on a
-# cluster root no server holds, never the service's).
+# check is wanted (the service fetches no key); and the offline corpus commands (operator commands on a cluster root no
+# server holds, never the service's), which since spec 014 are the recovery path and the way to load a later tag, not the
+# ordinary migration.
 #
 # ACCESS POLICY. This package carries the four graph tokens and the STARTING cluster policy that omnigraph-init
 # applies, and no other policy. Which of the four actors may do what on the graph is the service's own text, shipped in
@@ -62,6 +107,10 @@ services:
     # Built and published by askearlybird/earlybird-knowledge (.github/workflows/service-image.yml) on a merge to its
     # main. Pinned by digest (immutable); the tag is the service version and moves when that version is published again,
     # so only the digest counts. When the pin changes, change STEWARDSHIP_IMAGE_DIGEST below to the same digest.
+    # STILL TO BE FILLED (this tag and digest, here and in STEWARDSHIP_IMAGE_DIGEST below, are the spec 011 image and
+    # are NOT the image this file describes): the image for specs 012, 014 and 015 does not exist until
+    # askearlybird/earlybird-knowledge merges those specs' pull requests and its workflow builds it. Then take the
+    # tag and the digest from that workflow run's summary and set both places. No digest was invented.
     image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:63a6b12094ab7a11f6d072775dfc995e653228feac2641604e3ffeadce78d265
     environment:
       STEWARDSHIP_BIND: "0.0.0.0:8090"
@@ -108,7 +157,23 @@ services:
       # (STEWARDSHIP_CONSOLE_JWT_JWKS_FILE, with its issuer and audience) and is not set here.
       # STEWARDSHIP_CONSOLE_STANDIN is never set here: it is for development on 127.0.0.1 and is refused on this bind.
       STEWARDSHIP_CONSOLE_IDENTITY_SECRET: ${STEWARDSHIP_CONSOLE_IDENTITY_SECRET}
-      # Shown on the console's status page. Keep it equal to the digest of the image pin above.
+      # Publishing a release to a bucket (spec 015): nine settings, NO value in this file, all read from the app's
+      # settings and all empty by default. Empty means unset, and with all of them unset the service publishes nothing and
+      # behaves as without them. Publishing is configured only when the six required ones (bucket, region, signing key id,
+      # signing public key, access key id, secret access key) are ALL set: a partial set stops the service at start. The
+      # service also refuses to publish before the owner's cutover. The access key pair is a Hola secret (see the manifest).
+      # The endpoints are for stand-ins on 127.0.0.1 and stay empty here. See "RELEASES TO A BUCKET" in the header.
+      STEWARDSHIP_RELEASE_BUCKET: ${STEWARDSHIP_RELEASE_BUCKET:-}
+      STEWARDSHIP_RELEASE_REGION: ${STEWARDSHIP_RELEASE_REGION:-}
+      STEWARDSHIP_RELEASE_PREFIX: ${STEWARDSHIP_RELEASE_PREFIX:-}
+      STEWARDSHIP_RELEASE_KMS_KEY_ID: ${STEWARDSHIP_RELEASE_KMS_KEY_ID:-}
+      STEWARDSHIP_RELEASE_PUBLIC_KEY: ${STEWARDSHIP_RELEASE_PUBLIC_KEY:-}
+      STEWARDSHIP_RELEASE_AWS_ACCESS_KEY_ID: ${STEWARDSHIP_RELEASE_AWS_ACCESS_KEY_ID:-}
+      STEWARDSHIP_RELEASE_AWS_SECRET_ACCESS_KEY: ${STEWARDSHIP_RELEASE_AWS_SECRET_ACCESS_KEY:-}
+      STEWARDSHIP_RELEASE_S3_ENDPOINT: ${STEWARDSHIP_RELEASE_S3_ENDPOINT:-}
+      STEWARDSHIP_RELEASE_KMS_ENDPOINT: ${STEWARDSHIP_RELEASE_KMS_ENDPOINT:-}
+      # Shown on the console's status page. Keep it equal to the digest of the image pin above. STILL TO BE FILLED, as
+      # at the pin: it is the spec 011 image's digest until the image for specs 012, 014 and 015 is built.
       STEWARDSHIP_IMAGE_DIGEST: "sha256:63a6b12094ab7a11f6d072775dfc995e653228feac2641604e3ffeadce78d265"
       STEWARDSHIP_LOG_LEVEL: ${STEWARDSHIP_LOG_LEVEL:-info}
     volumes:
