@@ -44,7 +44,7 @@ services:
     # Built and published by askearlybird/earlybird-knowledge (.github/workflows/service-image.yml) on a merge to its
     # main. Pinned by digest (immutable); the tag is the service version and moves when that version is published again,
     # so only the digest counts. When the pin changes, change STEWARDSHIP_IMAGE_DIGEST below to the same digest.
-    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:51502e7a5e8e9e6020461a69eb7937c9d9e1cb9862cd816e28442ca4917ae870
+    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:63a6b12094ab7a11f6d072775dfc995e653228feac2641604e3ffeadce78d265
     environment:
       STEWARDSHIP_BIND: "0.0.0.0:8090"
       # The graph server on this app's network. Plain http is correct here: the traffic never leaves the app.
@@ -81,7 +81,7 @@ services:
       # STEWARDSHIP_CONSOLE_STANDIN is never set here: it is for development on 127.0.0.1 and is refused on this bind.
       STEWARDSHIP_CONSOLE_IDENTITY_SECRET: ${STEWARDSHIP_CONSOLE_IDENTITY_SECRET}
       # Shown on the console's status page. Keep it equal to the digest of the image pin above.
-      STEWARDSHIP_IMAGE_DIGEST: "sha256:51502e7a5e8e9e6020461a69eb7937c9d9e1cb9862cd816e28442ca4917ae870"
+      STEWARDSHIP_IMAGE_DIGEST: "sha256:63a6b12094ab7a11f6d072775dfc995e653228feac2641604e3ffeadce78d265"
       STEWARDSHIP_LOG_LEVEL: ${STEWARDSHIP_LOG_LEVEL:-info}
     volumes:
       - ${HOLA_APP_DATA}/stewardship:/var/lib/stewardship
