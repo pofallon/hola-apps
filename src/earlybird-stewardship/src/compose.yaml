@@ -108,9 +108,9 @@ services:
     # Built and published by askearlybird/earlybird-knowledge (.github/workflows/service-image.yml) on a merge to its
     # main. Pinned by digest (immutable); the tag is the service version and moves when that version is published again,
     # so only the digest counts. When the pin changes, change STEWARDSHIP_IMAGE_DIGEST below to the same digest.
-    # This digest is the image that repository's workflow built from its main at commit 530532a (2026-11-28, also tagged
-    # sha-530532a): specs 012 and 014 to 017. It was read from that workflow run's log. The image was never run on Hola.
-    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:3014709d3bc14a6f68e4ea85b115b79087cbc61d808abf305416ea341c74e1ea
+    # This digest is the image that repository's workflow built from its main at commit 102d534 (2026-11-28, also tagged
+    # sha-102d534): specs 012 and 014 to 018. It was read from that workflow run's log. The image was never run on Hola.
+    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:cd721115cf59a1f5fe773b72a4aab067511bf2f3e4d1f85d0f4d542dca282b5a
     environment:
       STEWARDSHIP_BIND: "0.0.0.0:8090"
       # The graph server on this app's network. Plain http is correct here: the traffic never leaves the app.
@@ -172,7 +172,7 @@ services:
       STEWARDSHIP_RELEASE_S3_ENDPOINT: ${STEWARDSHIP_RELEASE_S3_ENDPOINT:-}
       STEWARDSHIP_RELEASE_KMS_ENDPOINT: ${STEWARDSHIP_RELEASE_KMS_ENDPOINT:-}
       # Shown on the console's status page. Keep it equal to the digest of the image pin above.
-      STEWARDSHIP_IMAGE_DIGEST: "sha256:3014709d3bc14a6f68e4ea85b115b79087cbc61d808abf305416ea341c74e1ea"
+      STEWARDSHIP_IMAGE_DIGEST: "sha256:cd721115cf59a1f5fe773b72a4aab067511bf2f3e4d1f85d0f4d542dca282b5a"
       STEWARDSHIP_LOG_LEVEL: ${STEWARDSHIP_LOG_LEVEL:-info}
     volumes:
       - ${HOLA_APP_DATA}/stewardship:/var/lib/stewardship
