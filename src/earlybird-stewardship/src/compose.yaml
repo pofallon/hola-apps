@@ -21,8 +21,9 @@
 #
 #   1. Open the console behind the gate (/console/). The Setup page (/console/setup) says why the service is not ready.
 #   2. On the Setup page, upload the graph schema file, read the preview and apply it. The file is the release asset
-#      `earlybird-graph-schema-<major>.<minor>.json` of the release `graph-schema-v<major>.<minor>` of
-#      askearlybird/earlybird-knowledge (1.2 or later for the service of specs 014 and 015), once the owner has published it with that repository's workflow
+#      `earlybird-graph-schema-g1.4.json` of the release `graph-schema-g1.4` of askearlybird/earlybird-knowledge (the
+#      graph schema version is written with a `g`; this image needs g1.4), once the owner has published it with that
+#      repository's workflow
 #      .github/workflows/graph-schema.yml. NO SUCH FILE HAS BEEN PUBLISHED YET. The preview is the graph server's dry
 #      run, with the service's own access rules marked changed or unchanged; any deletion or non-additive step is
 #      refused. The service waits for the server's receipt and checks every operation it calls before it reports ready.
@@ -107,11 +108,9 @@ services:
     # Built and published by askearlybird/earlybird-knowledge (.github/workflows/service-image.yml) on a merge to its
     # main. Pinned by digest (immutable); the tag is the service version and moves when that version is published again,
     # so only the digest counts. When the pin changes, change STEWARDSHIP_IMAGE_DIGEST below to the same digest.
-    # STILL TO BE FILLED (this tag and digest, here and in STEWARDSHIP_IMAGE_DIGEST below, are the spec 011 image and
-    # are NOT the image this file describes): the image for specs 012, 014 and 015 does not exist until
-    # askearlybird/earlybird-knowledge merges those specs' pull requests and its workflow builds it. Then take the
-    # tag and the digest from that workflow run's summary and set both places. No digest was invented.
-    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:63a6b12094ab7a11f6d072775dfc995e653228feac2641604e3ffeadce78d265
+    # This digest is the image that repository's workflow built from its main at commit 99bc1fc (2026-11-28, also tagged
+    # sha-99bc1fc): specs 012 and 014 to 017. It was read from that workflow run's log. The image was never run on Hola.
+    image: ghcr.io/askearlybird/earlybird-stewardship:0.1.0@sha256:36bba2f63d89337871901ebd78ade6aeafc4369bd2cd9c1549e2d8775efc0026
     environment:
       STEWARDSHIP_BIND: "0.0.0.0:8090"
       # The graph server on this app's network. Plain http is correct here: the traffic never leaves the app.
@@ -172,9 +171,8 @@ services:
       STEWARDSHIP_RELEASE_AWS_SECRET_ACCESS_KEY: ${STEWARDSHIP_RELEASE_AWS_SECRET_ACCESS_KEY:-}
       STEWARDSHIP_RELEASE_S3_ENDPOINT: ${STEWARDSHIP_RELEASE_S3_ENDPOINT:-}
       STEWARDSHIP_RELEASE_KMS_ENDPOINT: ${STEWARDSHIP_RELEASE_KMS_ENDPOINT:-}
-      # Shown on the console's status page. Keep it equal to the digest of the image pin above. STILL TO BE FILLED, as
-      # at the pin: it is the spec 011 image's digest until the image for specs 012, 014 and 015 is built.
-      STEWARDSHIP_IMAGE_DIGEST: "sha256:63a6b12094ab7a11f6d072775dfc995e653228feac2641604e3ffeadce78d265"
+      # Shown on the console's status page. Keep it equal to the digest of the image pin above.
+      STEWARDSHIP_IMAGE_DIGEST: "sha256:36bba2f63d89337871901ebd78ade6aeafc4369bd2cd9c1549e2d8775efc0026"
       STEWARDSHIP_LOG_LEVEL: ${STEWARDSHIP_LOG_LEVEL:-info}
     volumes:
       - ${HOLA_APP_DATA}/stewardship:/var/lib/stewardship
